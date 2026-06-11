@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Logistik Dashboard v2</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#0a0e1a; --surface:#111827; --surface2:#1a2236; --surface3:#222e45;
+  --border:#1e2d47; --border2:#253352;
+  --cyan:#00c8ff; --green:#00ff9d; --orange:#ff6b35; --purple:#c678dd;
+  --yellow:#ffb86c; --red:#ff5555; --pink:#ff79c6;
+  --text:#e2e8f0; --muted:#64748b; --muted2:#4a5568;
+  --grid:#ffffff07;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;
+  background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+  background-size:36px 36px;}
+
+/* ── ALERTS ── */
+.alert-bar{display:flex;gap:8px;padding:8px 28px;background:#0d1220;border-bottom:1px solid var(--border);overflow-x:auto;flex-wrap:nowrap;}
+.alert{display:flex;align-items:center;gap:6px;padding:5px 11px;border-radius:20px;font-family:'JetBrains Mono',monospace;font-size:10px;white-space:nowrap;flex-shrink:0;}
+.alert-red{background:#ff555514;border:1px solid #ff555533;color:var(--red);}
+.alert-yellow{background:#ffb86c14;border:1px solid #ffb86c33;color:var(--yellow);}
+.alert-cyan{background:#00c8ff14;border:1px solid #00c8ff33;color:var(--cyan);}
+.alert-dot{width:6px;height:6px;border-radius:50%;background:currentColor;animation:pulse 1.8s infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.2}}
+
+/* ── TOPBAR ── */
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:14px 28px;
+  background:var(--surface);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100;}
+.logo-badge{background:linear-gradient(135deg,var(--cyan),var(--green));color:#000;
+  font-family:'JetBrains Mono',monospace;font-weight:700;font-size:11px;padding:5px 10px;border-radius:4px;letter-spacing:1px;}
+.topbar-title{font-size:15px;font-weight:700;letter-spacing:.5px;}
+.topbar-sub{font-size:10px;color:var(--muted);font-family:'JetBrains Mono',monospace;}
+.wms-badge{display:flex;align-items:center;gap:6px;background:#00ff9d18;border:1px solid #00ff9d44;
+  border-radius:20px;padding:5px 12px;font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--green);}
+.wms-dot{width:7px;height:7px;background:var(--green);border-radius:50%;animation:pulse 2s infinite;}
+.period-select{background:var(--surface2);border:1px solid var(--border);color:var(--text);
+  font-family:'Syne',sans-serif;font-size:12px;padding:6px 12px;border-radius:6px;cursor:pointer;}
+.refresh-btn{background:var(--cyan);color:#000;border:none;font-family:'JetBrains Mono',monospace;
+  font-size:11px;font-weight:700;padding:7px 16px;border-radius:6px;cursor:pointer;letter-spacing:.5px;transition:opacity .2s;}
+.refresh-btn:hover{opacity:.8;}
+.topbar-right{display:flex;align-items:center;gap:10px;}
+.topbar-left{display:flex;align-items:center;gap:14px;}
+
+/* ── NAV TABS ── */
+.nav-tabs{display:flex;gap:2px;padding:0 28px;background:var(--surface);border-bottom:1px solid var(--border);}
+.tab{padding:10px 18px;font-size:12px;font-weight:700;cursor:pointer;border-bottom:2px solid transparent;
+  letter-spacing:.5px;color:var(--muted);transition:all .2s;white-space:nowrap;}
+.tab:hover{color:var(--text);}
+.tab.active{color:var(--cyan);border-bottom-color:var(--cyan);}
+
+/* ── MAIN ── */
+.main{padding:22px 28px;display:flex;flex-direction:column;gap:18px;}
+.page{display:none;flex-direction:column;gap:18px;}
+.page.active{display:flex;}
+.section-label{font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:2.5px;color:var(--muted2);text-transform:uppercase;}
+
+/* ── CARDS ── */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px 18px;}
+.card-title{font-size:12px;font-weight:700;letter-spacing:.5px;margin-bottom:2px;}
+.card-sub{font-size:9px;color:var(--muted);font-family:'JetBrains Mono',monospace;margin-bottom:12px;}
+
+/* ── KPI CARDS ── */
+.kpi-row{display:grid;gap:12px;}
+.kpi-row-5{grid-template-columns:repeat(5,1fr);}
+.kpi-row-4{grid-template-columns:repeat(4,1fr);}
+.kpi-row-3{grid-template-columns:repeat(3,1fr);}
+.kpi-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;
+  padding:14px 16px;position:relative;overflow:hidden;transition:transform .2s,border-color .2s;}
+.kpi-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;}
+.kpi-card.cyan::before{background:var(--cyan);}
+.kpi-card.green::before{background:var(--green);}
+.kpi-card.orange::before{background:var(--orange);}
+.kpi-card.purple::before{background:var(--purple);}
+.kpi-card.yellow::before{background:var(--yellow);}
+.kpi-card.red::before{background:var(--red);}
+.kpi-card.pink::before{background:var(--pink);}
+.kpi-card:hover{transform:translateY(-2px);border-color:var(--border2);}
+.kpi-label{font-size:9px;color:var(--muted);font-family:'JetBrains Mono',monospace;letter-spacing:.5px;margin-bottom:6px;}
+.kpi-value{font-size:26px;font-weight:800;font-family:'JetBrains Mono',monospace;line-height:1;}
+.kpi-value.cyan{color:var(--cyan);} .kpi-value.green{color:var(--green);}
+.kpi-value.orange{color:var(--orange);} .kpi-value.purple{color:var(--purple);}
+.kpi-value.yellow{color:var(--yellow);} .kpi-value.red{color:var(--red);}
+.kpi-value.pink{color:var(--pink);}
+.kpi-unit{font-size:12px;font-weight:400;color:var(--muted);margin-left:2px;}
+.kpi-delta{font-size:10px;font-family:'JetBrains Mono',monospace;margin-top:5px;}
+.kpi-delta.up{color:var(--green);} .kpi-delta.down{color:var(--red);} .kpi-delta.neutral{color:var(--muted);}
+.kpi-cost{font-size:9px;color:var(--muted);font-family:'JetBrains Mono',monospace;margin-top:3px;}
+.editable{background:transparent;border:none;outline:none;color:inherit;font:inherit;width:100%;cursor:text;}
+.editable:focus{background:#ffffff0d;border-radius:3px;padding:1px 3px;}
+
+/* ── GRIDS ── */
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
+.grid-2-1{display:grid;grid-template-columns:2fr 1fr;gap:14px;}
+.grid-1-2{display:grid;grid-template-columns:1fr 2fr;gap:14px;}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+
+/* ── BAR CHART ── */
+.bar-chart{display:flex;align-items:flex-end;gap:5px;height:100px;}
+.bar-group{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;}
+.bar-wrap{width:100%;display:flex;gap:2px;align-items:flex-end;height:84px;}
+.bar{flex:1;border-radius:3px 3px 0 0;cursor:pointer;transition:opacity .2s;}
+.bar:hover{opacity:.7;}
+.bar-lbl{font-size:8px;color:var(--muted);font-family:'JetBrains Mono',monospace;}
+
+/* ── LINE CHART ── */
+.line-wrap{height:90px;position:relative;}
+
+/* ── DONUT ── */
+.donut-wrap{display:flex;flex-direction:column;align-items:center;gap:10px;}
+.legend-item{display:flex;align-items:center;justify-content:space-between;font-size:10px;}
+.legend-dot{width:7px;height:7px;border-radius:50%;margin-right:6px;flex-shrink:0;}
+.legend-label{display:flex;align-items:center;color:var(--muted);}
+.legend-val{font-family:'JetBrains Mono',monospace;font-weight:600;font-size:10px;}
+
+/* ── TABLE ── */
+.dtable{width:100%;border-collapse:collapse;font-size:11px;}
+.dtable th{text-align:left;padding:5px 8px;color:var(--muted);font-family:'JetBrains Mono',monospace;
+  font-size:8px;letter-spacing:1px;text-transform:uppercase;border-bottom:1px solid var(--border);}
+.dtable td{padding:7px 8px;border-bottom:1px solid #1a2236;vertical-align:middle;}
+.dtable tr:hover td{background:#ffffff03;}
+.badge{font-family:'JetBrains Mono',monospace;font-size:8px;padding:2px 6px;border-radius:3px;font-weight:700;letter-spacing:.5px;}
+.b-red{background:#ff555514;color:var(--red);border:1px solid #ff555530;}
+.b-yellow{background:#ffb86c14;color:var(--yellow);border:1px solid #ffb86c30;}
+.b-green{background:#00ff9d14;color:var(--green);border:1px solid #00ff9d30;}
+.b-cyan{background:#00c8ff14;color:var(--cyan);border:1px solid #00c8ff30;}
+.b-orange{background:#ff6b3514;color:var(--orange);border:1px solid #ff6b3530;}
+
+/* ── HBAR ── */
+.hbar-row{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+.hbar-lbl{font-size:9px;font-family:'JetBrains Mono',monospace;color:var(--muted);width:120px;flex-shrink:0;}
+.hbar-track{flex:1;background:var(--surface2);border-radius:3px;height:13px;overflow:hidden;}
+.hbar-fill{height:100%;border-radius:3px;opacity:.85;}
+.hbar-val{font-size:9px;font-family:'JetBrains Mono',monospace;width:36px;text-align:right;flex-shrink:0;}
+
+/* ── COST BREAKDOWN ── */
+.cost-row{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);}
+.cost-row:last-child{border-bottom:none;}
+.cost-name{font-size:11px;} .cost-sub{font-size:9px;color:var(--muted);font-family:'JetBrains Mono',monospace;}
+.cost-val{font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;}
+.cost-total-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0 0;margin-top:6px;border-top:2px solid var(--border2);}
+
+/* ── GAUGE ── */
+.gauge-wrap{display:flex;flex-direction:column;align-items:center;gap:6px;}
+.gauge-val{font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:700;}
+.gauge-sub{font-size:9px;color:var(--muted);font-family:'JetBrains Mono',monospace;}
+
+/* ── SYGEFRAVÆR SPECIFIK ── */
+.absfravær-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.shift-row{display:flex;justify-content:space-between;align-items:center;padding:6px 10px;
+  background:var(--surface2);border-radius:6px;font-size:10px;border:1px solid var(--border);}
+.shift-indicator{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+
+/* ── WMS PANEL ── */
+.wms-panel{background:#00ff9d08;border:1px solid #00ff9d22;border-radius:10px;
+  padding:12px 18px;display:flex;align-items:center;gap:16px;font-size:11px;}
+.wms-info-title{font-weight:700;font-size:12px;margin-bottom:2px;color:var(--green);}
+.wms-tags{display:flex;gap:7px;margin-top:7px;flex-wrap:wrap;}
+.wms-tag{background:var(--surface2);border:1px solid var(--border);border-radius:4px;
+  padding:2px 7px;font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--muted);}
+.wms-tag span{color:var(--green);}
+
+/* ── OVERWORK TIMELINE ── */
+.ot-row{display:flex;align-items:center;gap:8px;margin-bottom:5px;}
+.ot-week{font-size:9px;font-family:'JetBrains Mono',monospace;color:var(--muted);width:40px;flex-shrink:0;}
+.ot-bar-wrap{flex:1;height:18px;background:var(--surface2);border-radius:4px;overflow:hidden;position:relative;}
+.ot-bar-normal{height:100%;background:var(--cyan);opacity:.6;border-radius:4px;}
+.ot-bar-over{position:absolute;top:0;right:0;height:100%;background:var(--red);opacity:.8;border-radius:0 4px 4px 0;}
+.ot-val{font-size:9px;font-family:'JetBrains Mono',monospace;width:50px;text-align:right;color:var(--red);}
+
+/* ── FORSINKELSE TIMELINE TABLE ── */
+.delay-severity{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;}
+
+/* scrollbar */
+::-webkit-scrollbar{width:5px;height:5px;}
+::-webkit-scrollbar-track{background:var(--surface);}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px;}
+</style>
+</head>
+<body>
+
+<!-- ALERT BAR -->
+<div class="alert-bar" id="alertBar">
+  <div class="alert alert-red"><div class="alert-dot"></div>3 forsendelser forsinket &gt;48t</div>
+  <div class="alert alert-red"><div class="alert-dot"></div>Vare 4291-B ikke på lager — 12 ekstra pluk i kø</div>
+  <div class="alert alert-yellow"><div class="alert-dot"></div>Sygefravær 9,2% — over tærskel (7%)</div>
+  <div class="alert alert-yellow"><div class="alert-dot"></div>Overarbejde uge 19: 38 timer planlagt</div>
+  <div class="alert alert-cyan"><div class="alert-dot"></div>WMS sync: 4 min siden</div>
+</div>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="topbar-left">
+    <div class="logo-badge">LOG·BI</div>
+    <div>
+      <div class="topbar-title">Logistik Dashboard</div>
+      <div class="topbar-sub">Lager · Transport · Personale · Omkostninger — klik på tal for at redigere</div>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <div class="wms-badge"><div class="wms-dot"></div>WMS LIVE</div>
+    <select class="period-select"><option>Maj 2026</option><option>Apr 2026</option><option>Q2 2026</option><option>YTD 2026</option></select>
+    <button class="refresh-btn" onclick="refreshAll()">↻ OPDATER</button>
+  </div>
+</div>
+
+<!-- TABS -->
+<div class="nav-tabs">
+  <div class="tab active" onclick="showTab(0)">OVERBLIK</div>
+  <div class="tab" onclick="showTab(1)">FORSINKELSER</div>
+  <div class="tab" onclick="showTab(2)">EKSTRA PLUK & OMKOSTNINGER</div>
+  <div class="tab" onclick="showTab(3)">SYGEFRAVÆR & OVERARBEJDE</div>
+</div>
+
+<div class="main">
+
+<!-- ══════════════════ TAB 0: OVERBLIK ══════════════════ -->
+<div class="page active" id="tab0">
+
+  <div class="section-label">Nøgletal — periode</div>
+  <div class="kpi-row kpi-row-5">
+    <div class="kpi-card cyan">
+      <div class="kpi-label">ORDRER I ALT</div>
+      <div class="kpi-value cyan"><input class="editable" value="4.287" style="width:90px;font-size:26px;font-weight:800;font-family:'JetBrains Mono',monospace;color:var(--cyan)"></div>
+      <div class="kpi-delta up">↑ 12% vs. forrige</div>
+    </div>
+    <div class="kpi-card green">
+      <div class="kpi-label">LEVERINGSGRAD</div>
+      <div class="kpi-value green"><input class="editable" value="96,4" style="width:65px;font-size:26px;font-weight:800;font-family:'JetBrains Mono',monospace;color:var(--green)"><span class="kpi-unit">%</span></div>
+      <div class="kpi-delta up">↑ 1,2 pp vs. mål</div>
+    </div>
+    <div class="kpi-card orange">
+      <div class="kpi-label">GNSN. LEVERINGSTID</div>
+      <div class="kpi-value orange"><input class="editable" value="1,8" style="width:55px;font-size:26px;font-weight:800;font-family:'JetBrains Mono',monospace;color:var(--orange)"><span class="kpi-unit">dage</span></div>
+      <div class="kpi-delta down">↑ 0,2 over mål</div>
+    </div>
+    <div class="kpi-card red">
+      <div class="kpi-label">FORSINKEDE ORDRER</div>
+      <div class="kpi-value red"><input class="editable" value="127" style="width:65px;font-size:26px;font-weight:800;font-family:'JetBrains Mono',monospace;color:var(--red)"></div>
+      <div class="kpi-delta down">↑ 23 vs. forrige</div>
+      <div class="kpi-cost">= <input class="editable" value="38.100" style="width:60px;font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--muted)"> kr. ekstraomk.</div>
+    </div>
+    <div class="kpi-card yellow">
+      <div class="kpi-label">SYGEFRAVÆR</div>
+      <div class="kpi-value yellow"><input class="editable" value="9,2" style="width:55px;font-size:26px;font-weight:800;font-family:'JetBrains Mono',monospace;color:var(--yellow)"><span class="kpi-unit">%</span></div>
+      <div class="kpi-delta down">↑ 2,2 pp over tærskel</div>
+    </div>
+  </div>
+
+  <div class="kpi-row kpi-row-4">
+    <div class="kpi-card red">
+      <div class="kpi-label">EKSTRA PLUK (LAGER-OUT)</div>
+      <div class="kpi-value red"><input class="editable" value="312" style="width:65px;font-size:26px;font-weight:800;font-family:'JetBrains Mono',monospace;color:var(--red)"></div>
+      <div class="kpi-delta down">Pluk på ikke-lagerførte varer</div>
+      <div class="kpi-cost">Tidsomk.: <input class="editable" value="24.960" style="width:60px;font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--red)"> kr.</div>
+    </div>
+    <div class="kpi-card orange">
+      <div class="kpi-label">OVERARBEJDSTIMER</div>
+      <div class="kpi-value orange"><input class="editable" value="148" style="width:65px;font-size:26px;font-weight:800;font-family:'JetBrains Mono',monospace;color:var(--orange)"><span class="kpi-unit">t</span></div>
+      <div class="kpi-delta down">Heraf 68t pga. lager-out</div>
+      <div class="kpi-cost">Omkostning: <input class="editable" value="22.200" style="width:60px;font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--orange)"> kr.</div>
+    </div>
+    <div class="kpi-card purple">
+      <div class="kpi-label">PLUKFEJLRATE</div>
+      <div class="kpi-value purple"><input class="editable" value="1,4" style="width:55px;font-size:26px;font-weight:800;font-family:'JetBrains Mono',monospace;color:var(--purple)"><span class="kpi-unit">%</span></div>
+      <div class="kpi-delta down">↑ 0,3 pp vs. mål (1,0%)</div>
+    </div>
+    <div class="kpi-card pink">
+      <div class="kpi-label">TOTAL SKJULT OMKOSTNING</div>
+      <div class="kpi-value pink"><input class="editable" value="85.260" style="width:110px;font-size:26px;font-weight:800;font-family:'JetBrains Mono',monospace;color:var(--pink)"><span class="kpi-unit">kr</span></div>
+      <div class="kpi-delta down">Forsinkelser + pluk + OT</div>
+    </div>
+  </div>
+
+  <div class="grid-2-1">
+    <div class="card">
+      <div class="card-title">Ordrer & forsinkelser — ugentlig</div>
+      <div class="card-sub">Afsendte vs. forsinkede pr. uge</div>
+      <div class="bar-chart" id="overviewBar"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Skjulte omkostninger — fordeling</div>
+      <div class="card-sub">Hvad koster det egentlig?</div>
+      <div class="donut-wrap">
+        <svg width="90" height="90" viewBox="-45 -45 90 90" id="costDonut"></svg>
+        <div id="costDonutLeg" style="width:100%"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════ TAB 1: FORSINKELSER ══════════════════ -->
+<div class="page" id="tab1">
+
+  <div class="section-label">Forsinkelse — årsag & konsekvens</div>
+  <div class="kpi-row kpi-row-4">
+    <div class="kpi-card red">
+      <div class="kpi-label">FORSINKEDE I ALT</div>
+      <div class="kpi-value red"><input class="editable" value="127" style="width:65px;font-size:26px;font-weight:800;font-family:'JetBrains Mono',monospace;color:var(--red)"></div>
+      <div class="kpi-delta down">3,0% af alle ordrer</div>
+    </div>
+    <div class="kpi-card orange">
+      <div class="kpi-label">GNSN. FORSINKELSE</div>
+      <div class="kpi-value orange"><input class="editable" value="1,4" style="width:55px;font-size:26px;font-weight:800;font-family:'JetBrains Mono',monospace;color:var(--orange)"><span class="kpi-unit">dage</span></div>
+      <div class="kpi-delta down">Mål: &lt;0,5 dage</div>
+    </div>
+    <div class="kpi-card yellow">
+      <div class="kpi-label">KRITISKE (&gt;48T)</div>
+      <div class="kpi-value yellow"><input class="editable" value="18" style="width:55px;font-size:26px;font-weight:800;font-family:'JetBrains Mono',monospace;color:var(--yellow)"></div>
+      <div class="kpi-delta down">Eskaleret til ledelse</div>
+    </div>
+    <div class="kpi-card red">
+      <div class="kpi-label">EKSTRAOMKOSTNING</div>
+      <div class="kpi-value red"><input class="editable" value="38.100" style="width:100px;font-size:26px;font-weight:800;font-family:'JetBrains Mono',monospace;color:var(--red)"><span class="kpi-unit">kr</span></div>
+      <div class="kpi-delta down">Ekspres + kompensation</div>
+    </div>
+  </div>
+
+  <div class="grid-3">
+    <div class="card" style="grid-column:span 2">
+      <div class="card-title">Forsinkelsesårsager</div>
+      <div class="card-sub">Antal forsinkede ordrer pr. årsag</div>
+      <div id="delayReasons"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Carrier performance</div>
+      <div class="card-sub">Til-tid % pr. fragtfirma</div>
+      <div id="carrierPerf"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Aktive forsinkede forsendelser</div>
+    <div class="card-sub">Sorteret efter alvorlighed</div>
+    <table class="dtable">
+      <thead><tr>
+        <th>Ordre-ID</th><th>Vare</th><th>Destination</th><th>Carrier</th>
+        <th>Forventet</th><th>Forsinkelse</th><th>Årsag</th><th>Ekstraomk.</th><th>Status</th>
+      </tr></thead>
+      <tbody id="delayTable"></tbody>
+    </table>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">Forsinkelse trend — ugentlig</div>
+      <div class="card-sub">Antal forsinkede ordrer pr. uge</div>
+      <div class="line-wrap"><svg id="delayLine" viewBox="0 0 300 80" style="width:100%;height:80px;overflow:visible" preserveAspectRatio="none"></svg></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Forsinkelsestidspunkt i flow</div>
+      <div class="card-sub">Hvor i processen opstår forsinkelsen?</div>
+      <div id="flowDelay" style="margin-top:4px"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════ TAB 2: EKSTRA PLUK & OMKOSTNINGER ══════════════════ -->
+<div class="page" id="tab2">
+
+  <div class="section-label">Ekstra pluk — lager-out konsekvenser</div>
+  <div class="kpi-row kpi-row-3">
+    <div class="kpi-card red">
+      <div class="kpi-label">EKSTRA PLUK I ALT</div>
+      <div class="kpi-value red"><input class="editable" value="312" style="width:65px;font-size:26px;font-weight:800;font-family:'JetBrains Mono',monospace;color:var(--red)"></div>
+      <div class="kpi-delta down">Varer ikke på lager ved pluk</div>
+    </div>
+    <div class="kpi-card orange">
+      <div class="kpi-label">GNSN. EKSTRA TID PR. PLUK</div>
+      <div class="kpi-value orange"><input class="editable" value="24" style="width:55px;font-size:26px;font-weight:800;font-family:'JetBrains Mono',monospace;color:var(--orange)"><span class="kpi-unit">min</span></div>
+      <div class="kpi-delta down">Inkl. søg, genopfyldning, vent</div>
+    </div>
+    <div class="kpi-card yellow">
+      <div class="kpi-label">FORSINKEDE ANDRE PLUK</div>
+      <div class="kpi-value yellow"><input class="editable" value="89" style="width:65px;font-size:26px;font-weight:800;font-family:'JetBrains Mono',monospace;color:var(--yellow)"></div>
+      <div class="kpi-delta down">Kaskadeeffekt på andre ordrer</div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">Omkostningsberegning — ekstra pluk</div>
+      <div class="card-sub">Baseret på timeløn 150 kr/t</div>
+      <div class="cost-row">
+        <div><div class="cost-name">Ekstra pluk-tid</div><div class="cost-sub">312 pluk × 24 min × 150 kr/t</div></div>
+        <div class="cost-val" style="color:var(--red)"><input class="editable" value="18.720" style="width:70px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:var(--red)"> kr</div>
+      </div>
+      <div class="cost-row">
+        <div><div class="cost-name">Kaskadeeffekt — forsinkede pluk</div><div class="cost-sub">89 ordrer × 15 min gennemsnitlig forsinkelse</div></div>
+        <div class="cost-val" style="color:var(--orange)"><input class="editable" value="3.338" style="width:70px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:var(--orange)"> kr</div>
+      </div>
+      <div class="cost-row">
+        <div><div class="cost-name">Overarbejde pga. lager-out</div><div class="cost-sub">68 timer × 225 kr/t (OT-tillæg 50%)</div></div>
+        <div class="cost-val" style="color:var(--yellow)"><input class="editable" value="15.300" style="width:70px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:var(--yellow)"> kr</div>
+      </div>
+      <div class="cost-row">
+        <div><div class="cost-name">Eksprespåfyldning af lager</div><div class="cost-sub">Hasteordrer til leverandør</div></div>
+        <div class="cost-val" style="color:var(--purple)"><input class="editable" value="4.200" style="width:70px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:var(--purple)"> kr</div>
+      </div>
+      <div class="cost-row">
+        <div><div class="cost-name">Forsinkelseskompensation</div><div class="cost-sub">Kunder kompenseret pga. lager-out</div></div>
+        <div class="cost-val" style="color:var(--pink)"><input class="editable" value="2.800" style="width:70px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:var(--pink)"> kr</div>
+      </div>
+      <div class="cost-total-row">
+        <div style="font-weight:700;font-size:13px">TOTAL EKSTRA PLUK-OMKOSTNING</div>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:800;color:var(--red)"><input class="editable" value="44.358" style="width:90px;font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:800;color:var(--red)"> kr</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Top 10 varer med lager-out pluk</div>
+      <div class="card-sub">Mest problematiske varenumre</div>
+      <div id="stockoutItems"></div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">Pluk-tidspåvirkning pr. time på dagen</div>
+      <div class="card-sub">Kaskadeeffekt — hvornår rammer det?</div>
+      <div class="bar-chart" id="pickTimeBar"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Lager-out → forsinkelse kæde</div>
+      <div class="card-sub">Konsekvenskæde visualiseret</div>
+      <div id="chainViz" style="padding:4px 0;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════ TAB 3: SYGEFRAVÆR & OVERARBEJDE ══════════════════ -->
+<div class="page" id="tab3">
+
+  <div class="section-label">Personale — fravær & kapacitet</div>
+  <div class="kpi-row kpi-row-4">
+    <div class="kpi-card yellow">
+      <div class="kpi-label">SYGEFRAVÆR %</div>
+      <div class="kpi-value yellow"><input class="editable" value="9,2" style="width:55px;font-size:26px;font-weight:800;font-family:'JetBrains Mono',monospace;color:var(--yellow)"><span class="kpi-unit">%</span></div>
+      <div class="kpi-delta down">Tærskel: 7% — OVER</div>
+    </div>
+    <div class="kpi-card red">
+      <div class="kpi-label">FRAVÆRSDAGE</div>
+      <div class="kpi-value red"><input class="editable" value="47" style="width:55px;font-size:26px;font-weight:800;font-family:'JetBrains Mono',monospace;color:var(--red)"></div>
+      <div class="kpi-delta down">Påvirker 12 planlagte skift</div>
+    </div>
+    <div class="kpi-card orange">
+      <div class="kpi-label">OVERARBEJDSTIMER</div>
+      <div class="kpi-value orange"><input class="editable" value="148" style="width:65px;font-size:26px;font-weight:800;font-family:'JetBrains Mono',monospace;color:var(--orange)"><span class="kpi-unit">t</span></div>
+      <div class="kpi-delta down">Heraf 68t pga. lager-out</div>
+    </div>
+    <div class="kpi-card pink">
+      <div class="kpi-label">PERSONALEOMT. FRAVÆR+OT</div>
+      <div class="kpi-value pink"><input class="editable" value="36.450" style="width:110px;font-size:22px;font-weight:800;font-family:'JetBrains Mono',monospace;color:var(--pink)"><span class="kpi-unit">kr</span></div>
+      <div class="kpi-delta down">Inkl. vikarer + OT-tillæg</div>
+    </div>
+  </div>
+
+  <div class="grid-3">
+    <div class="card">
+      <div class="card-title">Sygefravær trend — ugentlig</div>
+      <div class="card-sub">% fravær pr. uge, seneste 8 uger</div>
+      <div class="line-wrap"><svg id="absLine" viewBox="0 0 280 80" style="width:100%;height:80px;overflow:visible" preserveAspectRatio="none"></svg></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Fravær pr. funktion</div>
+      <div class="card-sub">Lagermedarbejdere vs. chauffører vs. admin</div>
+      <div id="absFunction" style="margin-top:4px"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Kapacitetspåvirkning</div>
+      <div class="card-sub">Planlagt vs. tilgængelig kapacitet</div>
+      <div class="gauge-wrap" style="margin-top:8px">
+        <svg id="capGauge" width="150" height="80" viewBox="0 0 150 80"></svg>
+        <div class="gauge-val" id="capGaugeVal" style="color:var(--yellow)">84%</div>
+        <div class="gauge-sub">af planlagt kapacitet tilgængelig</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">Overarbejde — fordeling af årsag</div>
+      <div class="card-sub">Hvad driver overarbejdet?</div>
+      <div id="otReasons" style="margin-top:4px"></div>
+      <div style="border-top:1px solid var(--border);margin-top:10px;padding-top:10px;display:flex;justify-content:space-between;font-size:11px">
+        <span style="color:var(--muted)">Total OT-omkostning</span>
+        <span style="font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--orange)"><input class="editable" value="22.200" style="width:80px;font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--orange)"> kr.</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Overarbejde pr. uge — normal vs. ekstra</div>
+      <div class="card-sub">Blå = planlagt, Rød = lager-out/sygdom-drevet</div>
+      <div id="otWeeks" style="padding-top:6px"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Skiftpåvirkning — oversigt</div>
+    <div class="card-sub">Hvilke skift er direkte påvirket af sygefravær</div>
+    <table class="dtable">
+      <thead><tr><th>Dato</th><th>Skift</th><th>Planlagt</th><th>Fraværende</th><th>Tilgængelig</th><th>Dækning</th><th>OT aktiveret</th><th>Konsekvens</th></tr></thead>
+      <tbody id="shiftTable"></tbody>
+    </table>
+  </div>
+</div>
+
+</div><!-- /main -->
+
+<script>
+// ── TAB NAVIGATION ──────────────────────────────────────────────────────────
+function showTab(n){
+  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',i===n));
+  document.querySelectorAll('.page').forEach((p,i)=>p.classList.toggle('active',i===n));
+}
+
+// ── HELPERS ─────────────────────────────────────────────────────────────────
+function svgEl(tag,attrs){const e=document.createElementNS('http://www.w3.org/2000/svg',tag);Object.entries(attrs).forEach(([k,v])=>e.setAttribute(k,v));return e;}
+
+function drawLineChart(svgId, data, color, W=300, H=80, mn=null, mx=null){
+  const s=document.getElementById(svgId); s.innerHTML='';
+  const pad=8;
+  mn=mn??Math.min(...data)*0.95; mx=mx??Math.max(...data)*1.05;
+  const lx=i=>pad+(i/(data.length-1))*(W-2*pad);
+  const ly=v=>H-pad-((v-mn)/(mx-mn))*(H-2*pad);
+  const id='g'+svgId;
+  const defs=svgEl('defs',{});
+  defs.innerHTML=`<linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${color}" stop-opacity="0.2"/><stop offset="100%" stop-color="${color}" stop-opacity="0"/></linearGradient>`;
+  s.appendChild(defs);
+  let aD=`M ${lx(0)} ${H-pad}`;
+  data.forEach((_,i)=>aD+=` L ${lx(i)} ${ly(data[i])}`);
+  aD+=` L ${lx(data.length-1)} ${H-pad} Z`;
+  const area=svgEl('path',{d:aD,fill:`url(#${id})`}); s.appendChild(area);
+  const pts=data.map((_,i)=>`${lx(i)},${ly(data[i])}`).join(' ');
+  s.appendChild(svgEl('polyline',{points:pts,stroke:color,'stroke-width':'2',fill:'none','stroke-linecap':'round','stroke-linejoin':'round'}));
+  data.forEach((v,i)=>{
+    s.appendChild(svgEl('circle',{cx:lx(i),cy:ly(v),r:'3',fill:i===data.length-1?color:'var(--surface)',stroke:color,'stroke-width':'2'}));
+  });
+}
+
+function drawHBar(containerId, items){
+  const c=document.getElementById(containerId); c.innerHTML='';
+  const mx=Math.max(...items.map(d=>d.val));
+  items.forEach(d=>{
+    c.innerHTML+=`<div class="hbar-row">
+      <div class="hbar-lbl">${d.label}</div>
+      <div class="hbar-track"><div class="hbar-fill" style="width:${(d.val/mx)*100}%;background:${d.color}"></div></div>
+      <div class="hbar-val" style="color:${d.color}">${d.val}${d.unit||''}</div>
+    </div>`;
+  });
+}
+
+function drawGaugeSvg(svgId, pct, color, W=150, H=80){
+  const s=document.getElementById(svgId); s.innerHTML='';
+  const cx=W/2,cy=H,r=H-8,sw=10;
+  s.appendChild(svgEl('path',{d:`M ${cx-r} ${cy} A ${r} ${r} 0 0 1 ${cx+r} ${cy}`,stroke:'#1e2d47','stroke-width':sw,fill:'none','stroke-linecap':'round'}));
+  const a=Math.PI*pct;
+  const ex=cx+r*Math.cos(Math.PI-a), ey=cy-r*Math.sin(Math.PI-a);
+  s.appendChild(svgEl('path',{d:`M ${cx-r} ${cy} A ${r} ${r} 0 ${pct>.5?1:0} 1 ${ex} ${ey}`,stroke:color,'stroke-width':sw,fill:'none','stroke-linecap':'round'}));
+}
+
+// ── TAB 0: OVERBLIK ─────────────────────────────────────────────────────────
+(function(){
+  // Bar chart
+  const weeks=['U14','U15','U16','U17','U18','U19'];
+  const sent=[680,720,650,810,790,840];
+  const delayed=[18,22,15,28,32,38];
+  const mx=Math.max(...sent);
+  const bc=document.getElementById('overviewBar');
+  weeks.forEach((w,i)=>{
+    const hS=Math.round((sent[i]/mx)*84);
+    const hD=Math.round((delayed[i]/mx)*84);
+    bc.innerHTML+=`<div class="bar-group">
+      <div class="bar-wrap">
+        <div class="bar" style="height:${hS}px;background:var(--cyan);opacity:.7" title="Afsendt: ${sent[i]}"></div>
+        <div class="bar" style="height:${hD}px;background:var(--red);opacity:.85" title="Forsinket: ${delayed[i]}"></div>
+      </div>
+      <div class="bar-lbl">${w}</div>
+    </div>`;
+  });
+  // cost donut
+  const costItems=[
+    {label:'Forsinkelser',val:38,color:'var(--red)'},
+    {label:'Ekstra pluk',val:25,color:'var(--orange)'},
+    {label:'Overarbejde',val:22,color:'var(--yellow)'},
+    {label:'Sygefravær',val:15,color:'var(--purple)'},
+  ];
+  const ds=document.getElementById('costDonut'); let cum=0;
+  const r=34,sw=12;
+  costItems.forEach(d=>{
+    const pct=d.val/100;
+    const s=cum*Math.PI*2-Math.PI/2, e=(cum+pct)*Math.PI*2-Math.PI/2;
+    const path=svgEl('path',{
+      d:`M ${r*Math.cos(s)} ${r*Math.sin(s)} A ${r} ${r} 0 ${pct>.5?1:0} 1 ${r*Math.cos(e)} ${r*Math.sin(e)}`,
+      stroke:d.color,'stroke-width':sw,fill:'none','stroke-linecap':'round',opacity:'.9'
+    });
+    ds.appendChild(path); cum+=pct;
+  });
+  const dl=document.getElementById('costDonutLeg');
+  costItems.forEach(d=>{dl.innerHTML+=`<div class="legend-item"><div class="legend-label"><div class="legend-dot" style="background:${d.color}"></div>${d.label}</div><div class="legend-val">${d.val}%</div></div>`;});
+})();
+
+// ── TAB 1: FORSINKELSER ────────────────────────────────────────────────────
+(function(){
+  drawHBar('delayReasons',[
+    {label:'Lager-out (ingen vare)',val:52,color:'var(--red)',unit:''},
+    {label:'Carrier forsinkelse',val:28,color:'var(--orange)',unit:''},
+    {label:'Forkert adresse',val:19,color:'var(--yellow)',unit:''},
+    {label:'Beskadiget gods',val:14,color:'var(--purple)',unit:''},
+    {label:'Systembom/scan-fejl',val:9,color:'var(--cyan)',unit:''},
+    {label:'Toldstop/dokumentation',val:5,color:'var(--muted)',unit:''},
+  ]);
+  drawHBar('carrierPerf',[
+    {label:'PostNord',val:97,color:'var(--green)',unit:'%'},
+    {label:'GLS',val:94,color:'var(--cyan)',unit:'%'},
+    {label:'DHL',val:91,color:'var(--yellow)',unit:'%'},
+    {label:'DB Schenker',val:88,color:'var(--orange)',unit:'%'},
+    {label:'Bring',val:82,color:'var(--red)',unit:'%'},
+  ]);
+  // delay table
+  const rows=[
+    ['ORD-4271','Kaffemaskine B2','Randers','Bring','10. maj','+3 dage','Lager-out','680 kr','b-red','KRITISK'],
+    ['ORD-4285','Pumpe 4400','Odense','GLS','11. maj','+2 dage','Carrier','300 kr','b-yellow','FORSINKET'],
+    ['ORD-4292','Filter sæt 3pk','Aarhus','DB Schenker','12. maj','+1 dag','Lager-out','150 kr','b-yellow','FORSINKET'],
+    ['ORD-4301','Kabel 5m sort','Esbjerg','PostNord','13. maj','+2 dage','Forkert adr.','0 kr','b-orange','RETUR'],
+    ['ORD-4315','Ventil H22','København','DHL','13. maj','+1 dag','Lager-out','150 kr','b-yellow','FORSINKET'],
+    ['ORD-4318','Sensor kit','Vejle','GLS','14. maj','+0,5 dag','System','0 kr','b-cyan','LØST'],
+  ];
+  const tb=document.getElementById('delayTable');
+  rows.forEach(r=>{
+    tb.innerHTML+=`<tr>
+      <td style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--cyan)">${r[0]}</td>
+      <td>${r[1]}</td><td style="color:var(--muted)">${r[2]}</td><td style="color:var(--muted)">${r[3]}</td>
+      <td style="font-family:'JetBrains Mono',monospace;font-size:10px">${r[4]}</td>
+      <td style="font-family:'JetBrains Mono',monospace;color:var(--red)">${r[5]}</td>
+      <td><span class="badge ${r[8]}">${r[6]}</span></td>
+      <td style="font-family:'JetBrains Mono',monospace;color:var(--orange)">${r[7]}</td>
+      <td><span class="badge ${r[8]}">${r[9]}</span></td>
+    </tr>`;
+  });
+  // delay trend line
+  drawLineChart('delayLine',[18,22,15,28,32,27,35,38],'var(--red)',300,80,5,50);
+  // flow delay
+  const flow=[
+    {step:'Lagerpluk',pct:41,color:'var(--red)'},
+    {step:'Pakning',pct:12,color:'var(--orange)'},
+    {step:'Afsendelse',pct:8,color:'var(--yellow)'},
+    {step:'Transport',pct:28,color:'var(--cyan)'},
+    {step:'Levering',pct:11,color:'var(--purple)'},
+  ];
+  drawHBar('flowDelay',flow.map(f=>({label:f.step,val:f.pct,color:f.color,unit:'%'})));
+})();
+
+// ── TAB 2: EKSTRA PLUK ────────────────────────────────────────────────────
+(function(){
+  // stockout items
+  const items=[
+    ['4291-B','Pumpe adapter M12',48,'var(--red)'],
+    ['2201-A','Filter 50mm 3pk',36,'var(--red)'],
+    ['3340-C','Sensor kabel 2m',29,'var(--orange)'],
+    ['1102-D','Ventil H22',24,'var(--orange)'],
+    ['5512-A','Kabel forsk. 5m',21,'var(--yellow)'],
+    ['6601-B','Skrue M8 100pk',18,'var(--yellow)'],
+    ['7723-C','O-ring sæt 20pk',17,'var(--muted)'],
+    ['8841-A','Pakning 60mm',14,'var(--muted)'],
+    ['9902-B','Stik 4-pol hann',12,'var(--muted)'],
+    ['1234-X','Smøremiddel 500ml',9,'var(--muted)'],
+  ];
+  const si=document.getElementById('stockoutItems');
+  const max=items[0][2];
+  items.forEach(([id,name,val,col])=>{
+    si.innerHTML+=`<div class="hbar-row">
+      <div style="font-size:9px;font-family:'JetBrains Mono',monospace;color:var(--muted);width:55px;flex-shrink:0">${id}</div>
+      <div class="hbar-track" style="position:relative"><div class="hbar-fill" style="width:${(val/max)*100}%;background:${col}"></div></div>
+      <div class="hbar-val" style="color:${col}">${val}</div>
+    </div>`;
+  });
+  // pick time bar
+  const hours=['08','09','10','11','12','13','14','15','16'];
+  const normal=[22,35,41,38,18,36,43,40,28];
+  const extra=[2,4,8,12,5,9,14,10,6];
+  const mx=Math.max(...normal.map((v,i)=>v+extra[i]));
+  const pb=document.getElementById('pickTimeBar');
+  hours.forEach((h,i)=>{
+    const hN=Math.round((normal[i]/mx)*80);
+    const hE=Math.round((extra[i]/mx)*80);
+    pb.innerHTML+=`<div class="bar-group">
+      <div class="bar-wrap">
+        <div class="bar" style="height:${hN}px;background:var(--cyan);opacity:.6"></div>
+        <div class="bar" style="height:${hE}px;background:var(--red);opacity:.85"></div>
+      </div>
+      <div class="bar-lbl">${h}</div>
+    </div>`;
+  });
+  // chain viz
+  const chain=document.getElementById('chainViz');
+  const steps=[
+    {icon:'📦',label:'Vare ikke på lager',sub:'Lager-out registreret',color:'var(--red)'},
+    {icon:'🔍',label:'Ekstra søgning',sub:'+8 min pr. pluk',color:'var(--orange)'},
+    {icon:'🔄',label:'Genopfyldningsordre',sub:'Forsinkelse +2-4 timer',color:'var(--yellow)'},
+    {icon:'⏳',label:'Andre pluk forsinkes',sub:'Kaskade: 89 ordrer',color:'var(--purple)'},
+    {icon:'👷',label:'Overarbejde aktiveres',sub:'+68 timer denne periode',color:'var(--pink)'},
+    {icon:'💸',label:'Ekstraomkostning',sub:'44.358 kr. samlet',color:'var(--red)'},
+  ];
+  steps.forEach((s,i)=>{
+    chain.innerHTML+=`<div style="display:flex;align-items:center;gap:8px;margin-bottom:${i<steps.length-1?'4px':'0'}">
+      <div style="width:28px;height:28px;border-radius:6px;background:${s.color}18;border:1px solid ${s.color}44;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0">${s.icon}</div>
+      <div style="flex:1">
+        <div style="font-size:11px;font-weight:700">${s.label}</div>
+        <div style="font-size:9px;font-family:'JetBrains Mono',monospace;color:var(--muted)">${s.sub}</div>
+      </div>
+      ${i<steps.length-1?`<div style="font-size:10px;color:var(--muted)">↓</div>`:''}
+    </div>`;
+  });
+})();
+
+// ── TAB 3: SYGEFRAVÆR ────────────────────────────────────────────────────
+(function(){
+  drawLineChart('absLine',[5.1,5.8,6.2,7.4,8.1,7.9,8.8,9.2],'var(--yellow)',280,80,0,12);
+  drawGaugeSvg('capGauge',0.84,'var(--yellow)');
+  drawHBar('absFunction',[
+    {label:'Lagermedarb.',val:11,color:'var(--red)',unit:'%'},
+    {label:'Chauffører',val:8,color:'var(--orange)',unit:'%'},
+    {label:'Pluk-team',val:10,color:'var(--yellow)',unit:'%'},
+    {label:'Admin',val:4,color:'var(--cyan)',unit:'%'},
+    {label:'Ledere',val:2,color:'var(--green)',unit:'%'},
+  ]);
+  drawHBar('otReasons',[
+    {label:'Sygdom-dækning',val:52,color:'var(--yellow)',unit:'t'},
+    {label:'Lager-out forsinkelse',val:68,color:'var(--red)',unit:'t'},
+    {label:'Ekstra volume',val:18,color:'var(--cyan)',unit:'t'},
+    {label:'Maskinfejl',val:10,color:'var(--purple)',unit:'t'},
+  ]);
+  // OT weeks
+  const otData=[
+    {w:'U14',plan:12,extra:4},{w:'U15',plan:10,extra:8},{w:'U16',plan:14,extra:3},
+    {w:'U17',plan:11,extra:15},{w:'U18',plan:13,extra:18},{w:'U19',plan:10,extra:28},
+  ];
+  const ot=document.getElementById('otWeeks');
+  const mxOT=Math.max(...otData.map(d=>d.plan+d.extra));
+  otData.forEach(d=>{
+    const pW=Math.round((d.plan/mxOT)*200);
+    const eW=Math.round((d.extra/mxOT)*200);
+    ot.innerHTML+=`<div class="ot-row">
+      <div class="ot-week">${d.w}</div>
+      <div class="ot-bar-wrap" style="max-width:220px">
+        <div class="ot-bar-normal" style="width:${pW}px"></div>
+        <div class="ot-bar-over" style="width:${eW}px"></div>
+      </div>
+      <div class="ot-val">+${d.extra}t</div>
+    </div>`;
+  });
+  // shift table
+  const shifts=[
+    ['12. maj','Dag 06-14','14','2','12','86%','Ja — 2t','Reduceret pluk-kapacitet'],
+    ['12. maj','Aften 14-22','12','1','11','92%','Nej','OK'],
+    ['11. maj','Dag 06-14','14','3','11','79%','Ja — 5t','Forsinkelse på 28 ordrer'],
+    ['11. maj','Nat 22-06','8','2','6','75%','Ja — 4t','Lager-out ikke opdaget i tide'],
+    ['10. maj','Dag 06-14','14','1','13','93%','Nej','OK'],
+    ['09. maj','Aften 14-22','12','3','9','75%','Ja — 6t','Overbelastning pluk-zone B'],
+  ];
+  const st=document.getElementById('shiftTable');
+  shifts.forEach(r=>{
+    const pct=parseInt(r[4]);
+    const col=pct>=90?'var(--green)':pct>=80?'var(--yellow)':'var(--red)';
+    const badge=pct>=90?'b-green':pct>=80?'b-yellow':'b-red';
+    st.innerHTML+=`<tr>
+      <td style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted)">${r[0]}</td>
+      <td style="font-size:11px">${r[1]}</td>
+      <td style="font-family:'JetBrains Mono',monospace;font-size:10px">${r[2]}</td>
+      <td style="font-family:'JetBrains Mono',monospace;color:var(--red)">${r[3]}</td>
+      <td style="font-family:'JetBrains Mono',monospace">${r[4]}</td>
+      <td><span class="badge ${badge}" style="color:${col}">${r[5]}</span></td>
+      <td style="font-family:'JetBrains Mono',monospace;font-size:10px;color:${r[6]==='Nej'?'var(--green)':'var(--orange)'}">${r[6]}</td>
+      <td style="font-size:10px;color:var(--muted)">${r[7]}</td>
+    </tr>`;
+  });
+})();
+
+// ── REFRESH ──────────────────────────────────────────────────────────────────
+function refreshAll(){
+  document.querySelectorAll('.kpi-card').forEach((c,i)=>{
+    setTimeout(()=>{c.style.opacity='.3'; setTimeout(()=>c.style.opacity='1',200);},i*30);
+  });
+}
+</script>
+</body>
+</html>
